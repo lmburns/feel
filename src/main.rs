@@ -6,40 +6,62 @@
     unused_qualifications
 )]
 
+use clap::{crate_authors, crate_version, AppSettings, Clap};
+use colored::*;
 use filetime::FileTime;
-use structopt::StructOpt;
 
-use std::fs::{DirBuilder, OpenOptions};
-use std::path::PathBuf;
-use std::time::SystemTime;
+use std::{
+    fs::{DirBuilder, OpenOptions},
+    path::PathBuf,
+    time::SystemTime,
+};
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "feel", about = "it goes beyond touch")]
+#[derive(Clap, Default, Debug)]
+#[clap(
+    version = crate_version!(),
+    author = crate_authors!(),
+    about = "it goes beyond touch",
+    global_setting = AppSettings::ColoredHelp,
+    global_setting = AppSettings::ColorAlways,
+    name = "feel",
+)]
 struct FeelOpts {
-    #[structopt(parse(from_os_str))]
-    path: PathBuf,
+    #[clap(parse(from_os_str), multiple_values = true)]
+    path:  Vec<PathBuf>,
+    #[clap(long, short)]
+    quiet: bool,
 }
 
 fn main() -> Result<(), String> {
-    let FeelOpts { path } = FeelOpts::from_args();
-    let dir = path.parent().expect("unable to find the path base");
+    let opts = FeelOpts::parse();
 
-    DirBuilder::new()
-        .recursive(true)
-        .create(dir)
-        .map_err(|_| format!("could not create {}", dir.to_string_lossy()))?;
+    for (idx, path) in opts.path.iter().enumerate() {
+        let dir = path.parent().expect("unable to find the path base");
 
-    OpenOptions::new()
-        .write(true)
-        .append(true)
-        .create(true)
-        .open(&path)
-        .map_err(|_| format!("could not open {}", path.to_string_lossy()))?;
+        DirBuilder::new()
+            .recursive(true)
+            .create(dir)
+            .map_err(|_| format!("could not create {}", dir.to_string_lossy()))?;
 
-    let file_time = FileTime::from_system_time(SystemTime::now());
+        OpenOptions::new()
+            .write(true)
+            .append(true)
+            .create(true)
+            .open(&path)
+            .map_err(|_| format!("could not open {}", path.to_string_lossy()))?;
 
-    filetime::set_file_times(path, file_time, file_time)
-        .map_err(|_| String::from("could not update file times"))?;
+        let file_time = FileTime::from_system_time(SystemTime::now());
+
+        filetime::set_file_times(path, file_time, file_time)
+            .map_err(|_| String::from("could not update file times"))?;
+
+        if !opts.quiet {
+            if idx == 0 as usize {
+                println!("{}", "Created".bold().green());
+            }
+            println!("  └  {}", path.display().to_string().bold().magenta());
+        }
+    }
 
     Ok(())
 }
