@@ -11,6 +11,6 @@ repository = "https://github.com/jbr/feel"
 
 
 [dependencies]
-clap = "3.0.0-beta.4"
+clap = "3.2.16"
 colored = "2.0.0"
 filetime = "0.2.15"
